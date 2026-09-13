@@ -117,7 +117,7 @@ const ARCHETYPES: AgentArchetype[] = [
     avatarId: "02",
     colorId: "blue",
     mandate:
-      "Automated market maker range defense and basis yield compounding across Arc liquidity pools.",
+      "USDC↔EURC FX on Arc via Circle Swap Kit — stablecoin-native quotes and capped desk execution.",
     gridSpan: "lg:col-span-2",
     accentBorderHover: "hover:border-[#60a5fa]/60",
     glowColor: "rgba(96,165,250,0.15)",

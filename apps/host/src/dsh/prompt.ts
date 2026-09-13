@@ -135,7 +135,7 @@ export function buildAgentIdentityBlock(
       : "";
   const toolRule =
     readTools.length > 0
-      ? `- You may call: ${toolList}${backtestTool}${chainSearchTools}. get_wallet_balances is home-chain only (${homeChain}). get_spot_prices is USD spot reference (not executable). get_dex_quote (when home chain supports 0x) is an indicative route for stable↔ETH/WETH — observe-only, does not execute. search_x scouts X (free; rumor). Intel: get_trending_pools / get_token_pools / get_recent_trades (GeckoTerminal), get_stablecoin_market / get_dex_volumes (DefiLlama). Prefer The Graph (mcp__subgraph__*) for indexed onchain discovery when Chain Search is available. Do not call web_search.${pluginNote}`
+      ? `- You may call: ${toolList}${backtestTool}${chainSearchTools}. get_wallet_balances is home-chain only (${homeChain}). get_spot_prices is USD spot reference (not executable). get_dex_quote (when home chain supports swaps) is an indicative route — 0x stable↔ETH/WETH on ETH L2s, Circle Swap Kit USDC↔EURC on Arc — observe-only, does not execute. search_x scouts X (free; rumor). Intel: get_trending_pools / get_token_pools / get_recent_trades (GeckoTerminal), get_stablecoin_market / get_dex_volumes (DefiLlama). Prefer The Graph (mcp__subgraph__*) for indexed onchain discovery when Chain Search is available. Do not call web_search.${pluginNote}`
       : `- Limited tools on ${homeChain}. Use search_x + intel tools when available. Do not call web_search; do not invent numbers.${pluginNote}`;
 
   const strategyStatus = agent.strategy?.status;

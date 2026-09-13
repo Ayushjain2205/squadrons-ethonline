@@ -27,10 +27,13 @@ export type StrategyTemplate = {
   draft: UpsertStrategyDraftInput;
 };
 
-/** ETH L2s / mainnet with USDC + 0x quotes (excludes Robinhood). */
+/** ETH L2s / mainnet with USDC + 0x quotes (excludes Robinhood + Arc). */
 const DEX_TEMPLATE_CHAINS = [
   8453, 1, 42161, 10, 130, 480,
 ] as const satisfies readonly SupportedChainId[];
+
+/** Arc Testnet — Circle Swap Kit USDC↔EURC. */
+const ARC_TEMPLATE_CHAINS = [5042002] as const satisfies readonly SupportedChainId[];
 
 /**
  * Squadrons-authored templates only. Add entries here — no migration.
@@ -219,6 +222,30 @@ export const STRATEGY_TEMPLATES: readonly StrategyTemplate[] = [
       caps: { maxTradeUsd: 10 },
     },
   },
+  {
+    id: "arc-eurc-dip-buy",
+    name: "Arc EURC dip buy",
+    blurb: "Propose a capped USDC→EURC buy on Arc when EURC USD dips.",
+    description:
+      "Stablecoin FX on Arc Testnet via Circle Swap Kit (not 0x). When EURC USD crosses below your level, proposes a capped USDC→EURC swap. Fund Arc USDC from the Circle faucet for testnet. Import sets a draft; Arm to run.",
+    chainIds: ARC_TEMPLATE_CHAINS,
+    tags: ["trade", "fx", "arc", "circle"],
+    editableKeys: ["level", "amountUsd", "direction", "side"],
+    draft: {
+      summary: "Propose buy EURC on Arc when price crosses below $1.05 (~$10 USDC)",
+      recipeId: "price_cross_swap",
+      params: {
+        symbol: "EURC",
+        level: 1.05,
+        direction: "below",
+        side: "buy",
+        amountUsd: 10,
+      },
+      trigger: { type: "event", event: "price_cross", intervalSec: 60 },
+      action: { type: "propose_trade" },
+      caps: { maxTradeUsd: 10 },
+    },
+  },
 ] as const;
 
 export type StrategyTemplateId = (typeof STRATEGY_TEMPLATES)[number]["id"];
@@ -312,6 +339,23 @@ export function buildDraftFromTemplate(
           ? ` (~$${Math.round(amountUsd).toLocaleString()})`
           : "";
       summary = `Propose ${side} ETH when price crosses ${direction} $${Math.round(level).toLocaleString()}${size}`;
+    }
+  } else if (template.id === "arc-eurc-dip-buy") {
+    const level = Number(params.level);
+    const amountUsd = Number(params.amountUsd);
+    const side = params.side === "sell" ? "sell" : "buy";
+    const direction =
+      params.direction === "above"
+        ? "above"
+        : params.direction === "either"
+          ? "either side of"
+          : "below";
+    if (Number.isFinite(level)) {
+      const size =
+        Number.isFinite(amountUsd) && amountUsd > 0
+          ? ` (~$${Math.round(amountUsd).toLocaleString()} USDC)`
+          : "";
+      summary = `Propose ${side} EURC on Arc when price crosses ${direction} $${level.toFixed(2)}${size}`;
     }
   } else if (template.id === "eth-tp-stop") {
     const takeProfit = Number(params.takeProfit);
