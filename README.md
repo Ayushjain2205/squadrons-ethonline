@@ -4,6 +4,8 @@ Multi-tenant platform for persistent, named crypto agents.
 
 See [PRD.md](./PRD.md) for product and implementation orientation.
 See [docs/STRATEGY.md](./docs/STRATEGY.md) for chat → Arm → deterministic recipes → self-improvement.
+See [docs/graph_usage.md](./docs/graph_usage.md) for The Graph (Chain Search + Substreams).
+See [docs/arc_usage.md](./docs/arc_usage.md) for Arc / Circle Swap Kit.
 
 ## Monorepo
 
