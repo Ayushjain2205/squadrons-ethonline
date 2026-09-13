@@ -2,6 +2,7 @@ import {
   activityStepLabel,
   isBacktestToolName,
   isChainSearchPublishToolName,
+  isSubstreamsDeployToolName,
   type ActivityKind,
 } from "@squadrons/shared";
 import type { NewActivityEvent } from "../agents/activity.js";
@@ -98,6 +99,14 @@ export function isSuccessfulPublishChainSearchResult(
   return chainSearchPublishToolNameFromNotification(agentId, notification) != null;
 }
 
+/** True when dsh reports a successful deploy_event_pipeline tool result. */
+export function isSuccessfulDeployEventPipelineResult(
+  agentId: string,
+  notification: HarnessNotification,
+): boolean {
+  return substreamsDeployToolNameFromNotification(agentId, notification) != null;
+}
+
 /**
  * Resolve backtest tool name from a notification (for per-agent last-call fallback).
  */
@@ -123,6 +132,18 @@ export function chainSearchPublishToolNameFromNotification(
   const name =
     toolNameFromData(event.data) ?? lastToolCallName.get(agentId) ?? null;
   return isChainSearchPublishToolName(name) ? name : null;
+}
+
+export function substreamsDeployToolNameFromNotification(
+  agentId: string,
+  notification: HarnessNotification,
+): string | null {
+  const event = sessionEvent(notification);
+  if (!event || event.type !== "tool/result") return null;
+  if (event.data.error) return null;
+  const name =
+    toolNameFromData(event.data) ?? lastToolCallName.get(agentId) ?? null;
+  return isSubstreamsDeployToolName(name) ? name : null;
 }
 
 /**
@@ -164,8 +185,9 @@ export function mapNotificationToActivity(
         };
       }
 
-      // Backtest / chain-search cards are published from workspace file sync in routes.ts
-      // (dsh tool/result payloads don't reliably include the structured artifact).
+      // Backtest / chain-search / substreams cards are published from workspace
+      // file sync in routes.ts (dsh tool/result payloads don't reliably include
+      // the structured artifact).
       return null;
     }
     case "turn/end": {

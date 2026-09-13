@@ -27,7 +27,7 @@ import {
   invalidateAgentRuntime,
   runDshTurn,
 } from "../dsh/runner.js";
-import { isSuccessfulProposeStrategyResult, isSuccessfulUpdateStrategyParamsResult, isSuccessfulProposeImprovementResult, isSuccessfulRunBacktestResult, isSuccessfulPublishChainSearchResult } from "../dsh/activity-map.js";
+import { isSuccessfulProposeStrategyResult, isSuccessfulUpdateStrategyParamsResult, isSuccessfulProposeImprovementResult, isSuccessfulRunBacktestResult, isSuccessfulPublishChainSearchResult, isSuccessfulDeployEventPipelineResult } from "../dsh/activity-map.js";
 import type { ActivityHub } from "./activity-hub.js";
 import type { MessageStore } from "./messages.js";
 import { agentWorkspacePath } from "./paths.js";
@@ -55,6 +55,10 @@ import {
   clearPendingChainSearch,
   readPendingChainSearch,
 } from "../plugins/chain-search-sync.js";
+import {
+  clearPendingSubstreamsPipeline,
+  readPendingSubstreamsPipeline,
+} from "../plugins/substreams-sync.js";
 import {
   isMcpCatalogId,
   type CreateCustomPluginInput,
@@ -1737,6 +1741,23 @@ export function registerAgentRoutes(
                 console.error("[chain-search-mid-turn]", agent.id, error);
               });
             }
+            if (isSuccessfulDeployEventPipelineResult(agent.id, notification)) {
+              void (async () => {
+                const artifact = await readPendingSubstreamsPipeline(workspace);
+                if (!artifact) return;
+                activity.publish({
+                  agentId: agent.id,
+                  kind: "tool_result",
+                  source: "chat",
+                  label: "Deployed event pipeline",
+                  detail: JSON.stringify(artifact),
+                  toolName: "deploy_event_pipeline",
+                });
+                await clearPendingSubstreamsPipeline(workspace);
+              })().catch((error) => {
+                console.error("[substreams-mid-turn]", agent.id, error);
+              });
+            }
           },
         });
       } catch (error) {
@@ -1808,6 +1829,22 @@ export function registerAgentRoutes(
         }
       } catch (error) {
         console.error("[chain-search-sync]", agent.id, error);
+      }
+      try {
+        const artifact = await readPendingSubstreamsPipeline(workspace);
+        if (artifact) {
+          activity.publish({
+            agentId: agent.id,
+            kind: "tool_result",
+            source: "chat",
+            label: "Deployed event pipeline",
+            detail: JSON.stringify(artifact),
+            toolName: "deploy_event_pipeline",
+          });
+          await clearPendingSubstreamsPipeline(workspace);
+        }
+      } catch (error) {
+        console.error("[substreams-sync]", agent.id, error);
       }
 
       const assistantMessage = messages.append(

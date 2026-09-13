@@ -24,9 +24,12 @@ function mcpBridgeRevision(): string {
   const chainSearch = existsSync(
     path.join(dshHome, "profiles/sdk/node_modules/squadrons-chain-search"),
   );
+  const substreams = existsSync(
+    path.join(dshHome, "profiles/sdk/node_modules/squadrons-substreams"),
+  );
   const graph = isChainSearchAvailable() ? "g1" : "g0";
   // Bump when first-party plugin loading changes so pooled harnesses rebuild.
-  return `plugins-${mcpClient ? "mcp1" : "mcp0"}-${backtest ? "bt2" : "bt0"}-${chainSearch ? "cs1" : "cs0"}-${graph}`;
+  return `plugins-${mcpClient ? "mcp1" : "mcp0"}-${backtest ? "bt2" : "bt0"}-${chainSearch ? "cs1" : "cs0"}-${substreams ? "ss1" : "ss0"}-${graph}`;
 }
 
 /** Resolve enabled MCP plugins into Cordis patch + env for a dsh turn. */
@@ -40,6 +43,9 @@ export async function prepareAgentPlugins(
   const enabledNames = runtime.map((p) => p.name);
   if (isChainSearchAvailable() && !enabledNames.includes("Chain Search")) {
     enabledNames.push("Chain Search");
+  }
+  if (!enabledNames.includes("Event Pipeline")) {
+    enabledNames.push("Event Pipeline");
   }
   return {
     patches: patchPath ? [patchPath] : [],

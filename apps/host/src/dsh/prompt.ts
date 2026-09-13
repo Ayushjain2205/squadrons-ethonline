@@ -53,7 +53,7 @@ export function buildContinuingTurnPrompt(
   const directive = pluginTurnDirective(userText, options?.enabledPlugins);
   const pluginLine =
     options?.enabledPlugins && options.enabledPlugins.length > 0
-      ? `Enabled desk plugins this turn: ${options.enabledPlugins.join(", ")}. If Backtest is enabled, call run_backtest. If Chain Search is enabled, use Subgraph MCP (mcp__subgraph__*) then publish_chain_search for a results card.`
+      ? `Enabled desk plugins this turn: ${options.enabledPlugins.join(", ")}. If Backtest is enabled, call run_backtest. If Chain Search is enabled, use Subgraph MCP (mcp__subgraph__*) then publish_chain_search for a results card. If Event Pipeline is listed, call deploy_event_pipeline then propose_strategy (token_flow_alert).`
       : null;
   if (options?.hasStrategy) {
     return [
@@ -95,6 +95,16 @@ export function pluginTurnDirective(
   ) {
     return "DIRECTIVE: The user @mentioned Chain Search (@search/@graph). Use The Graph Subgraph MCP tools (mcp__subgraph__*) for live indexed data on the home chain, THEN call publish_chain_search with query/title/summary and hitsJson (JSON array of hits) for the chat card. Do not invent numbers. Do not use web_search or skill first. If Subgraph MCP tools are missing, say Chain Search is unavailable on this host.";
   }
+  const pipelineOn = enabledPlugins.some((name) =>
+    /event\s*pipeline|substreams/i.test(name),
+  );
+  if (
+    pipelineOn &&
+    (/(^|[\s])@pipeline\b/i.test(userText) ||
+      /(^|[\s])\/event-pipeline\b/i.test(userText))
+  ) {
+    return "DIRECTIVE: The user asked for an Event Pipeline (@pipeline or /event-pipeline). Your FIRST tool call this turn must be deploy_event_pipeline with intent/title/summary/chainId (home chain) and modulesJson covering the needed events (swaps, transfers, liquidity, metadata, holders for top-token flow). Then call propose_strategy with recipeId token_flow_alert, params.pipelineId from the deploy result, and trigger event token_flow_hit. Do not use web_search first. Do not invent package YAML in chat.";
+  }
   return null;
 }
 
@@ -123,7 +133,7 @@ export function buildAgentIdentityBlock(
   ].join(", ");
   const pluginNote =
     enabledPlugins && enabledPlugins.length > 0
-      ? ` Enabled desk plugins: ${enabledPlugins.join(", ")}. First-party Backtest exposes run_backtest — call it when @backtest is mentioned. Chain Search (when listed) uses mcp__subgraph__* then publish_chain_search for @search/@graph. Remote MCP plugins expose mcp__<server>__<tool>.`
+      ? ` Enabled desk plugins: ${enabledPlugins.join(", ")}. First-party Backtest exposes run_backtest — call it when @backtest is mentioned. Chain Search (when listed) uses mcp__subgraph__* then publish_chain_search for @search/@graph. Event Pipeline exposes deploy_event_pipeline — call it for @pipeline / /event-pipeline, then propose_strategy with token_flow_alert. Remote MCP plugins expose mcp__<server>__<tool>.`
       : "";
   const backtestTool =
     enabledPlugins?.some((name) => /backtest/i.test(name)) === true
@@ -133,9 +143,14 @@ export function buildAgentIdentityBlock(
     enabledPlugins?.some((name) => /chain\s*search/i.test(name)) === true
       ? ", mcp__subgraph__* (The Graph), publish_chain_search"
       : "";
+  const pipelineTools =
+    enabledPlugins?.some((name) => /event\s*pipeline|substreams/i.test(name)) ===
+    true
+      ? ", deploy_event_pipeline"
+      : "";
   const toolRule =
     readTools.length > 0
-      ? `- You may call: ${toolList}${backtestTool}${chainSearchTools}. get_wallet_balances is home-chain only (${homeChain}). get_spot_prices is USD spot reference (not executable). get_dex_quote (when home chain supports swaps) is an indicative route — 0x stable↔ETH/WETH on ETH L2s, Circle Swap Kit USDC↔EURC on Arc — observe-only, does not execute. search_x scouts X (free; rumor). Intel: get_trending_pools / get_token_pools / get_recent_trades (GeckoTerminal), get_stablecoin_market / get_dex_volumes (DefiLlama). Prefer The Graph (mcp__subgraph__*) for indexed onchain discovery when Chain Search is available. Do not call web_search.${pluginNote}`
+      ? `- You may call: ${toolList}${backtestTool}${chainSearchTools}${pipelineTools}. get_wallet_balances is home-chain only (${homeChain}). get_spot_prices is USD spot reference (not executable). get_dex_quote (when home chain supports swaps) is an indicative route — 0x stable↔ETH/WETH on ETH L2s, Circle Swap Kit USDC↔EURC on Arc — observe-only, does not execute. search_x scouts X (free; rumor). Intel: get_trending_pools / get_token_pools / get_recent_trades (GeckoTerminal), get_stablecoin_market / get_dex_volumes (DefiLlama). Prefer The Graph (mcp__subgraph__*) for indexed onchain discovery when Chain Search is available. Prefer deploy_event_pipeline when the strategy must listen to swaps/transfers/liquidity/holders (esp. Robinhood). Do not call web_search.${pluginNote}`
       : `- Limited tools on ${homeChain}. Use search_x + intel tools when available. Do not call web_search; do not invent numbers.${pluginNote}`;
 
   const strategyStatus = agent.strategy?.status;
@@ -190,6 +205,7 @@ export function buildAgentIdentityBlock(
     '- stable_depeg_alert params: { symbol, low, high }. Prefer trigger { type: "event", event: "stable_depeg", intervalSec } and action alert.',
     '- pool_liquidity_shock params: { poolAddress, dropPct: 0–1, minReserveUsd? }. Prefer trigger { type: "event", event: "pool_liquidity_shock", intervalSec } and action alert (GeckoTerminal-supported home chains).',
     '- copy_wallet_propose params: { targetAddress, amountUsd, minUsd }. Prefer trigger { type: "event", event: "target_trade_seen", intervalSec } and action propose_trade. Detects ETH(+WETH)↔USDC balance deltas on the target (poll lag — not HFT). Replace the demo targetAddress.',
+    '- token_flow_alert params: { pipelineId, minVolumeUsd, minScore }. Requires deploy_event_pipeline first. Prefer trigger { type: "event", event: "token_flow_hit", intervalSec } and action alert. Best for Robinhood / top-token flow listeners.',
     '- trigger.type is "interval" (intervalSec >= 15) or "event" (event string + optional intervalSec poll floor).',
     '- action.type is "alert" or "propose_trade" (observe agents should prefer alert; paper/live may use propose_trade with price_cross_swap / take_profit_stop / inventory_rebalance / copy_wallet_propose).',
     "- Optional improvement: { enabled, cadence: hourly|daily|weekly, allowedKeys }. Self-improvement proposes param patches for desk approve.",

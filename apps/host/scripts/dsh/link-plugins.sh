@@ -26,8 +26,9 @@ const plugins = {
   "squadrons-intel": "link:$ROOT/packages/squadrons-intel",
   "squadrons-backtest": "link:$ROOT/packages/squadrons-backtest",
   "squadrons-chain-search": "link:$ROOT/packages/squadrons-chain-search",
+  "squadrons-substreams": "link:$ROOT/packages/squadrons-substreams",
 };
-// MCP bridge for remote catalog/custom plugins (Dune, Nansen, custom HTTP).
+    // MCP bridge for remote catalog/custom plugins (Dune, Nansen, custom HTTP).
 data.dependencies["@deepseek-ai/dsh-mcp-client"] = "0.1.2-rc.1";
 for (const [name, spec] of Object.entries(plugins)) {
   data.dependencies[name] = spec;
@@ -43,6 +44,7 @@ const bundled = [
   "squadrons-intel",
   "squadrons-backtest",
   "squadrons-chain-search",
+  "squadrons-substreams",
 ];
 for (const name of bundled) {
   if (!data.dsh.profile.bundles.includes(name)) {
