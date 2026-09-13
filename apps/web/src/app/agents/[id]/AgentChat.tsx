@@ -12,6 +12,7 @@ import {
   parseAllowanceApprovalMarker,
   parseBacktestArtifact,
   parseChainSearchArtifact,
+  parseSubstreamsPipelineArtifact,
   parseTradeOutcomeMarker,
   stripAllowanceApprovalMarker,
   stripTradeOutcomeMarker,
@@ -22,10 +23,12 @@ import {
   type ChainSearchArtifact,
   type DeskSkill,
   type OrbColorId,
+  type SubstreamsPipelineArtifact,
 } from "@squadrons/shared";
 import { AgentOrb } from "@/components/AgentOrb";
 import { BacktestChartCard } from "@/components/desk/BacktestChartCard";
 import { ChainSearchCard } from "@/components/desk/ChainSearchCard";
+import { SubstreamsPipelineCard } from "@/components/desk/SubstreamsPipelineCard";
 import { PluginAtMenu } from "@/components/desk/PluginAtMenu";
 import { SkillSlashMenu } from "@/components/desk/SkillSlashMenu";
 import {
@@ -86,11 +89,15 @@ export function AgentChat({
   const [searchesByUserMessageId, setSearchesByUserMessageId] = useState<
     Record<string, ChainSearchArtifact[]>
   >({});
+  const [pipelinesByUserMessageId, setPipelinesByUserMessageId] = useState<
+    Record<string, SubstreamsPipelineArtifact[]>
+  >({});
   const [activeUserMessageId, setActiveUserMessageId] = useState<string | null>(
     null,
   );
   const pendingChartsRef = useRef<BacktestArtifact[]>([]);
   const pendingSearchesRef = useRef<ChainSearchArtifact[]>([]);
+  const pendingPipelinesRef = useRef<SubstreamsPipelineArtifact[]>([]);
   const activeUserMessageIdRef = useRef<string | null>(null);
   activeUserMessageIdRef.current = activeUserMessageId;
   const [awaitingAllowance, setAwaitingAllowance] = useState<
@@ -148,10 +155,12 @@ export function AgentChat({
     setStepsByUserMessageId({});
     setChartsByUserMessageId({});
     setSearchesByUserMessageId({});
+    setPipelinesByUserMessageId({});
     setLiveSteps([]);
     setActiveUserMessageId(null);
     pendingChartsRef.current = [];
     pendingSearchesRef.current = [];
+    pendingPipelinesRef.current = [];
     setDraft("");
     closeSlashMenu();
     closeAtMenu();
@@ -233,7 +242,7 @@ export function AgentChat({
     return unsubscribe;
   }, [agent.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // GenUI artifacts (backtest chart / chain search) — always listen.
+  // GenUI artifacts (backtest / chain search / event pipeline) — always listen.
   useEffect(() => {
     const unsubscribe = subscribeActivity(agent.id, (event) => {
       if (event.source === "strategy") return;
@@ -293,14 +302,68 @@ export function AgentChat({
       }
 
       const search = parseChainSearchArtifact(event.detail);
-      if (!search) return;
+      if (search) {
+        pendingSearchesRef.current = [...pendingSearchesRef.current, search];
+        const anchorId = activeUserMessageIdRef.current;
+        if (anchorId) {
+          setSearchesByUserMessageId((prev) => ({
+            ...prev,
+            [anchorId]: [...(prev[anchorId] ?? []), search],
+          }));
+        }
 
-      pendingSearchesRef.current = [...pendingSearchesRef.current, search];
+        setLiveSteps((prev) => {
+          const label =
+            displayActivityLabel(
+              { ...event, kind: "tool_call" },
+              { done: true },
+            ) ?? event.label;
+          const idx = [...prev]
+            .reverse()
+            .findIndex(
+              (step) =>
+                step.status === "running" ||
+                (event.toolName != null && step.toolName === event.toolName),
+            );
+          if (idx === -1) {
+            return [
+              ...prev,
+              {
+                id: event.id,
+                label,
+                toolName: event.toolName,
+                status: "done" as const,
+                detail: event.detail,
+              },
+            ];
+          }
+          const realIndex = prev.length - 1 - idx;
+          return prev.map((step, i) =>
+            i === realIndex
+              ? {
+                  ...step,
+                  status: "done" as const,
+                  label,
+                  detail: event.detail,
+                }
+              : step,
+          );
+        });
+        return;
+      }
+
+      const pipeline = parseSubstreamsPipelineArtifact(event.detail);
+      if (!pipeline) return;
+
+      pendingPipelinesRef.current = [
+        ...pendingPipelinesRef.current,
+        pipeline,
+      ];
       const anchorId = activeUserMessageIdRef.current;
       if (anchorId) {
-        setSearchesByUserMessageId((prev) => ({
+        setPipelinesByUserMessageId((prev) => ({
           ...prev,
-          [anchorId]: [...(prev[anchorId] ?? []), search],
+          [anchorId]: [...(prev[anchorId] ?? []), pipeline],
         }));
       }
 
@@ -597,12 +660,18 @@ export function AgentChat({
     setLiveSteps([]);
     pendingChartsRef.current = [];
     pendingSearchesRef.current = [];
+    pendingPipelinesRef.current = [];
     setChartsByUserMessageId((prev) => {
       const next = { ...prev };
       delete next[optimisticId];
       return next;
     });
     setSearchesByUserMessageId((prev) => {
+      const next = { ...prev };
+      delete next[optimisticId];
+      return next;
+    });
+    setPipelinesByUserMessageId((prev) => {
       const next = { ...prev };
       delete next[optimisticId];
       return next;
@@ -677,9 +746,26 @@ export function AgentChat({
             return next;
           });
         }
+        const pipelines = [...pendingPipelinesRef.current].filter(
+          (artifact, index, all) =>
+            all.findIndex(
+              (row) =>
+                row.pipelineId === artifact.pipelineId &&
+                row.title === artifact.title,
+            ) === index,
+        );
+        if (userMsg && pipelines.length > 0) {
+          setPipelinesByUserMessageId((prev) => {
+            const next = { ...prev };
+            delete next[optimisticId];
+            next[userMsg.id] = pipelines;
+            return next;
+          });
+        }
         setLiveSteps([]);
         pendingChartsRef.current = [];
         pendingSearchesRef.current = [];
+        pendingPipelinesRef.current = [];
         setActiveUserMessageId(userMsg?.id ?? null);
       } catch (err) {
         try {
@@ -864,6 +950,10 @@ export function AgentChat({
                 message.role === "user"
                   ? searchesByUserMessageId[message.id] ?? []
                   : [];
+              const pipelinesForMessage =
+                message.role === "user"
+                  ? pipelinesByUserMessageId[message.id] ?? []
+                  : [];
               const allowanceIntentId =
                 message.role === "system"
                   ? parseAllowanceApprovalMarker(message.content)
@@ -912,6 +1002,12 @@ export function AgentChat({
                   {searchesForMessage.map((artifact, index) => (
                     <ChainSearchCard
                       key={`${message.id}-search-${artifact.title}-${artifact.query}-${index}`}
+                      artifact={artifact}
+                    />
+                  ))}
+                  {pipelinesForMessage.map((artifact, index) => (
+                    <SubstreamsPipelineCard
+                      key={`${message.id}-pipe-${artifact.pipelineId}-${index}`}
                       artifact={artifact}
                     />
                   ))}

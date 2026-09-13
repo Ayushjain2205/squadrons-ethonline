@@ -105,6 +105,26 @@ function BrandGlyph({
       </svg>
     );
   }
+  if (iconId === "pipeline") {
+    return (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+        <path
+          d="M4 7h6v3H4V7Zm10 0h6v3h-6V7ZM7 10v4h10v-4"
+          stroke="white"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M4 14h6v3H4v-3Zm10 0h6v3h-6v-3Z"
+          stroke="white"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
   if (iconId === "custom") {
     return (
       <svg

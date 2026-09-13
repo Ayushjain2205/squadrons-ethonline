@@ -483,23 +483,33 @@ function BuiltinInfoSheet({
 }) {
   const entry = getMcpCatalogEntry(plugin.catalogId ?? "");
   const live = plugin.enabled && plugin.configured;
+  const isPipeline = plugin.catalogId === "substreams";
+  const subtitle = isPipeline
+    ? "Included for every agent — Substreams studio deploy path."
+    : live
+      ? "Included for every agent — powered by The Graph."
+      : "Waiting for host THE_GRAPH_GATEWAY_API_KEY.";
+  const mention = isPipeline ? "@pipeline" : "@search";
+  const help = isPipeline
+    ? "or run /event-pipeline. Author a Substreams listener from natural language, then draft token_flow_alert with the returned pipelineId."
+    : "Operators set one Gateway API key on the host (100k free queries/mo) — users never paste a key here.";
+  const docsLabel = isPipeline
+    ? "Substreams skills docs →"
+    : "The Graph AI docs →";
+
   return (
     <SheetFrame
       title={plugin.name}
-      subtitle={
-        live
-          ? "Included for every agent — powered by The Graph."
-          : "Waiting for host THE_GRAPH_GATEWAY_API_KEY."
-      }
+      subtitle={subtitle}
       catalogId={plugin.catalogId}
       onBack={onBack}
     >
       <div className="space-y-4">
         <p className="type-meta text-[var(--ink-soft)]">{plugin.description}</p>
         <p className="type-meta text-[var(--muted)]">
-          Mention <span className="text-[var(--ink)]">@search</span> in chat.
-          Operators set one Gateway API key on the host (100k free queries/mo) —
-          users never paste a key here.
+          Mention <span className="text-[var(--ink)]">{mention}</span> in chat
+          {isPipeline ? " " : ". "}
+          {help}
         </p>
         {entry?.docsUrl ? (
           <a
@@ -508,7 +518,7 @@ function BuiltinInfoSheet({
             rel="noreferrer"
             className="type-meta text-[var(--link)] hover:underline"
           >
-            The Graph AI docs →
+            {docsLabel}
           </a>
         ) : null}
         <button
