@@ -73,16 +73,22 @@ function BrandGlyph({
     return (
       <svg width={s} height={s} viewBox="0 0 24 24" fill="none">
         <path
-          d="M4 16.5 9 11l3.5 3.5L20 7"
+          d="M4 18 9.2 11.8l3.3 3.4L20 7v11H4Z"
+          fill="white"
+          fillOpacity="0.22"
+        />
+        <path
+          d="M4 18 9.2 11.8l3.3 3.4L20 7"
           stroke="white"
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
+        <circle cx="20" cy="7" r="2" fill="white" />
         <path
-          d="M4 20h16"
+          d="M4 20.25h16"
           stroke="white"
-          strokeOpacity="0.45"
+          strokeOpacity="0.35"
           strokeWidth="1.5"
           strokeLinecap="round"
         />
@@ -92,16 +98,50 @@ function BrandGlyph({
   if (iconId === "graph") {
     return (
       <svg width={s} height={s} viewBox="0 0 24 24" fill="none">
-        <circle cx="6" cy="12" r="2.25" fill="white" />
-        <circle cx="12" cy="6" r="2.25" fill="white" />
-        <circle cx="12" cy="18" r="2.25" fill="white" />
-        <circle cx="18" cy="12" r="2.25" fill="white" />
-        <path
-          d="M8 11.2 10.2 7.8M8 12.8l2.2 3.4M14 7.8 16 11.2M14 16.2 16 12.8"
+        <circle
+          cx="10.25"
+          cy="10.25"
+          r="6.5"
           stroke="white"
-          strokeWidth="1.5"
+          strokeWidth="2"
+        />
+        <path
+          d="M15.1 15.1 20 20"
+          stroke="white"
+          strokeWidth="2.25"
           strokeLinecap="round"
         />
+        <circle cx="8.1" cy="11.4" r="1.55" fill="white" />
+        <circle cx="11.9" cy="7.7" r="1.55" fill="white" />
+        <circle cx="13.15" cy="12.55" r="1.55" fill="white" />
+        <path
+          d="M9.2 10.5 11.1 8.6M12.7 9.1l.35 2"
+          stroke="white"
+          strokeWidth="1.35"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+  if (iconId === "social") {
+    return (
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+        <path
+          d="M5 8.5c0-1.66 1.34-3 3-3h5.5c1.66 0 3 1.34 3 3v3.2c0 1.66-1.34 3-3 3H10l-3.2 2.4V14.7H8c-1.66 0-3-1.34-3-3V8.5Z"
+          fill="white"
+        />
+        <path
+          d="M14.5 11.8h1c1.66 0 3 1.34 3 3v.9l2.2 1.65V15.8c0-1.66-1.34-3-3-3h-.7"
+          stroke="white"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+          opacity="0.55"
+        />
+        <circle cx="9.1" cy="9.85" r="1" fill="#1D9BF0" />
+        <circle cx="12" cy="9.85" r="1" fill="#1D9BF0" />
+        <circle cx="14.9" cy="9.85" r="1" fill="#1D9BF0" />
       </svg>
     );
   }
