@@ -70,6 +70,21 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     docsUrl: "https://thegraph.com/docs/en/ai-overview/",
   },
   {
+    id: "substreams",
+    name: "Event Pipeline",
+    description:
+      "Author and deploy Substreams pipelines for onchain strategy listeners",
+    icon: "pipeline",
+    accent: "#5dcea0",
+    serverName: "pipeline",
+    transport: "stdio",
+    command: "squadrons-substreams",
+    args: [],
+    secrets: [],
+    builtin: true,
+    docsUrl: "https://thegraph.com/docs/en/substreams/tooling/skills/",
+  },
+  {
     id: "backtest",
     name: "Backtest",
     description: "Simulated equity curves for strategy ideas (chart in chat)",

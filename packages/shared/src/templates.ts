@@ -35,6 +35,11 @@ const DEX_TEMPLATE_CHAINS = [
 /** Arc Testnet — Circle Swap Kit USDC↔EURC. */
 const ARC_TEMPLATE_CHAINS = [5042002] as const satisfies readonly SupportedChainId[];
 
+/** Robinhood Chain — Substreams token-flow listeners. */
+const ROBINHOOD_TEMPLATE_CHAINS = [
+  4663,
+] as const satisfies readonly SupportedChainId[];
+
 /**
  * Squadrons-authored templates only. Add entries here — no migration.
  * Each draft must use a built-in recipeId.
@@ -244,6 +249,29 @@ export const STRATEGY_TEMPLATES: readonly StrategyTemplate[] = [
       trigger: { type: "event", event: "price_cross", intervalSec: 60 },
       action: { type: "propose_trade" },
       caps: { maxTradeUsd: 10 },
+    },
+  },
+  {
+    id: "robinhood-top-token-flow",
+    name: "Robinhood top-token flow",
+    blurb: "Alert when Substreams ranks a hot token from swaps + transfers.",
+    description:
+      "For a “top tokens on Robinhood Chain” desk: deploy an Event Pipeline (@pipeline / /event-pipeline) that indexes Uniswap swaps, token transfers, pool liquidity, metadata, and holder/buyer activity. Then Arm this recipe with the returned pipelineId. The host watches token_flow_hit edges from the studio stream head — not GeckoTerminal (unsupported on Robinhood).",
+    chainIds: ROBINHOOD_TEMPLATE_CHAINS,
+    tags: ["alert", "substreams", "robinhood", "tokens"],
+    editableKeys: ["pipelineId", "minVolumeUsd", "minScore"],
+    draft: {
+      summary:
+        "Alert when Robinhood token-flow pipeline hits volume ≥$75k or score ≥120",
+      recipeId: "token_flow_alert",
+      params: {
+        // Replace after deploy_event_pipeline returns pipelineId.
+        pipelineId: "pipe_replace_me",
+        minVolumeUsd: 75_000,
+        minScore: 120,
+      },
+      trigger: { type: "event", event: "token_flow_hit", intervalSec: 60 },
+      action: { type: "alert" },
     },
   },
 ] as const;

@@ -23,6 +23,11 @@ export const DESK_SKILLS: readonly DeskSkill[] = [
     label: "Wallet pulse",
     blurb: "Balances, gas headroom, and desk readiness.",
   },
+  {
+    name: "event-pipeline",
+    label: "Event pipeline",
+    blurb: "Author a Substreams listener, then draft the strategy.",
+  },
 ] as const;
 
 export function deskSkillByName(name: string): DeskSkill | undefined {

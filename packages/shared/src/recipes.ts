@@ -10,6 +10,7 @@ export const RECIPE_IDS = [
   "stable_depeg_alert",
   "pool_liquidity_shock",
   "copy_wallet_propose",
+  "token_flow_alert",
 ] as const;
 
 export type RecipeId = (typeof RECIPE_IDS)[number];
@@ -132,6 +133,17 @@ export const RECIPE_CATALOG: Record<RecipeId, RecipeParamSchema> = {
       targetAddress: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
       amountUsd: 10,
       minUsd: 100,
+    },
+  },
+  token_flow_alert: {
+    label: "Token flow",
+    description:
+      "Event-style: alert when a Substreams token-flow pipeline scores a top-token hit (swaps, transfers, liquidity, holders).",
+    paramKeys: ["pipelineId", "minVolumeUsd", "minScore"],
+    defaultParams: {
+      pipelineId: "pipe_replace_me",
+      minVolumeUsd: 75_000,
+      minScore: 120,
     },
   },
 };
@@ -288,6 +300,24 @@ export function describeRecipePlan(
     return `Propose copy of ${target}${floor}${size}`;
   }
 
+  if (recipeId === "token_flow_alert") {
+    const pipe =
+      typeof params.pipelineId === "string" && params.pipelineId.trim()
+        ? params.pipelineId.trim()
+        : "pipeline";
+    const minVolume = Number(params.minVolumeUsd);
+    const minScore = Number(params.minScore);
+    const volumePart =
+      Number.isFinite(minVolume) && minVolume > 0
+        ? ` volume ≥ ${formatUsd(minVolume)}`
+        : "";
+    const scorePart =
+      Number.isFinite(minScore) && minScore > 0
+        ? `${volumePart ? " or" : ""} score ≥ ${minScore}`
+        : "";
+    return `${verb} ${pipe} token-flow hit${volumePart}${scorePart}`;
+  }
+
   return null;
 }
 
@@ -326,6 +356,9 @@ export function describeStrategySchedule(trigger: {
     }
     if (trigger.event === "target_trade_seen") {
       return "Watches a wallet for ETH↔USDC trades";
+    }
+    if (trigger.event === "token_flow_hit") {
+      return "Watches Substreams token-flow hits";
     }
     if (trigger.event) return `Watches for ${trigger.event.replace(/_/g, " ")}`;
     return "Watches for an event";
@@ -552,6 +585,27 @@ export function parseRecipeParams(
       amountUsd,
       minUsd,
     };
+  }
+
+  if (recipeId === "token_flow_alert") {
+    const pipelineId =
+      typeof raw.pipelineId === "string" && raw.pipelineId.trim()
+        ? raw.pipelineId.trim()
+        : String(base.pipelineId ?? "");
+    if (!pipelineId || !/^pipe_[a-zA-Z0-9_-]{6,48}$/.test(pipelineId)) {
+      return null;
+    }
+    const minVolumeUsd = Number(raw.minVolumeUsd ?? base.minVolumeUsd);
+    const minScore = Number(raw.minScore ?? base.minScore);
+    if (
+      !Number.isFinite(minVolumeUsd) ||
+      minVolumeUsd < 0 ||
+      !Number.isFinite(minScore) ||
+      minScore < 0
+    ) {
+      return null;
+    }
+    return { pipelineId, minVolumeUsd, minScore };
   }
 
   return null;
