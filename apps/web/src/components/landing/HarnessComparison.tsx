@@ -89,7 +89,7 @@ export function HarnessComparison() {
 
   return (
     <section
-      id="primitives"
+      id="harness"
       className="relative flex min-h-screen flex-col justify-center border-t border-[#1f1f1f] bg-[#000000] px-6 py-24 md:py-32 text-[#f4f4f5]"
     >
       {/* Background ambient lighting */}

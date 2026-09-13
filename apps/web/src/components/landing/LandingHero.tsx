@@ -82,31 +82,25 @@ export function LandingHero({ onLogin, onExploreClick }: LandingHeroProps) {
             orbSize={26}
           />
 
-          {/* Monospace uppercase nav */}
+          {/* Monospace uppercase nav — mirrors landing sections */}
           <nav className="hidden items-center gap-8 font-mono text-[11px] uppercase tracking-widest text-[#8a8f9d] md:flex">
             <a
               href="#harness"
               className="transition hover:text-[#f4f4f5] border-b border-transparent hover:border-[#5dcea0] pb-0.5"
             >
-              The Harness
+              Harness
             </a>
             <a
-              href="#primitives"
+              href="#workflow"
               className="transition hover:text-[#f4f4f5] border-b border-transparent hover:border-[#5dcea0] pb-0.5"
             >
-              Sensors
+              Workflow
             </a>
             <a
-              href="#safety"
+              href="#recipes"
               className="transition hover:text-[#f4f4f5] border-b border-transparent hover:border-[#5dcea0] pb-0.5"
             >
-              Safety Ladder
-            </a>
-            <a
-              href="#docs"
-              className="transition hover:text-[#f4f4f5] border-b border-transparent hover:border-[#5dcea0] pb-0.5"
-            >
-              Docs
+              Recipes
             </a>
           </nav>
 

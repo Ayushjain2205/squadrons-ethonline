@@ -229,7 +229,10 @@ export function WorkflowSteps() {
       {/* =========================================================================
           STEP 1: Choose chain, create agent
           ========================================================================= */}
-      <section className="relative min-h-screen flex flex-col justify-center items-center border-t border-[#1f1f1f] bg-[#000000] px-6 py-24 md:py-32 text-[#f4f4f5]">
+      <section
+        id="workflow"
+        className="relative min-h-screen flex flex-col justify-center items-center border-t border-[#1f1f1f] bg-[#000000] px-6 py-24 md:py-32 text-[#f4f4f5]"
+      >
         {/* Ambient background glow */}
         <div className="pointer-events-none absolute left-1/3 top-1/4 h-[600px] w-[1000px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(93,206,160,0.08)_0%,transparent_70%)] blur-3xl" />
 
