@@ -724,23 +724,9 @@ function AgentSettingsForm({
           <div className="flex gap-1.5">
             {(
               [
-                {
-                  id: "observe" as const,
-                  label: "Observe",
-                  hint: "Alerts only",
-                },
-                {
-                  id: "paper" as const,
-                  label: "Paper",
-                  hint: "Quote fills, no broadcast",
-                },
-                {
-                  id: "live" as const,
-                  label: "Live",
-                  hint: hostAllowsLive
-                    ? "Real txs under caps"
-                    : "Disabled on this host",
-                },
+                { id: "observe" as const, label: "Observe" },
+                { id: "paper" as const, label: "Paper" },
+                { id: "live" as const, label: "Live" },
               ] as const
             ).map((option) => {
               const selected = runMode === option.id;
@@ -750,6 +736,11 @@ function AgentSettingsForm({
                   key={option.id}
                   type="button"
                   disabled={locked}
+                  title={
+                    locked
+                      ? "Live is disabled on this host"
+                      : undefined
+                  }
                   onClick={() => {
                     if (option.id === runMode || locked) return;
                     setConfirm(
@@ -760,16 +751,13 @@ function AgentSettingsForm({
                     );
                   }}
                   aria-pressed={selected}
-                  className={`flex flex-1 cursor-pointer flex-col items-start rounded-xl border px-3 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                  className={`flex flex-1 cursor-pointer items-center justify-center rounded-xl border px-3 py-2.5 transition disabled:cursor-not-allowed disabled:opacity-40 ${
                     selected
                       ? "border-[var(--accent)] bg-[var(--panel)]"
                       : "border-[var(--line)] hover:border-[var(--line)] hover:bg-[var(--panel)]"
                   }`}
                 >
                   <span className="type-ui text-[var(--ink)]">{option.label}</span>
-                  <span className="type-meta text-[var(--muted)]">
-                    {option.hint}
-                  </span>
                 </button>
               );
             })}
