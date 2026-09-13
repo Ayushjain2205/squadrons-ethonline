@@ -36,7 +36,7 @@ export type McpPatchResult = {
 
 /**
  * Build a Cordis overlay for per-agent plugins.
- * - First-party Backtest is always bundled; disable when Plugins → Backtest is off.
+ * - First-party Backtest is always bundled (builtin; never disabled).
  * - Chain Search GenUI (squadrons-chain-search) is always bundled when present.
  * - Event Pipeline GenUI (squadrons-substreams) is always bundled when present.
  * - Subgraph MCP is always injected when THE_GRAPH_GATEWAY_API_KEY is set.
@@ -49,19 +49,13 @@ export async function buildAgentMcpPatch(
   const env: Record<string, string> = {};
   const rows: string[] = [];
 
-  const backtestEnabled = plugins.some(
-    (plugin) => plugin.catalogId === "backtest",
-  );
-  if (!backtestEnabled) {
-    rows.push(["- id: squadrons-backtest", "  disabled: true"].join("\n"));
-  }
-
   const graphRow = buildSubgraphMcpRow(env);
   if (graphRow) rows.push(graphRow);
 
   for (const plugin of plugins) {
     if (plugin.catalogId === "backtest") continue;
     if (plugin.catalogId === "chain-search") continue;
+    if (plugin.catalogId === "social-search") continue;
     if (plugin.catalogId === "substreams") continue;
     const built = buildPluginRow(plugin, env);
     if (built) rows.push(asInsert(built));
