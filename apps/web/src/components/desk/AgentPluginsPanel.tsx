@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getMcpCatalogEntry, type AgentPluginView } from "@squadrons/shared";
+import {
+  getMcpCatalogEntry,
+  MCP_CATALOG,
+  type AgentPluginView,
+} from "@squadrons/shared";
 import {
   createCustomPlugin,
   deleteAgentPlugin,
@@ -11,6 +15,63 @@ import {
 } from "@/lib/host";
 import { useToast } from "@/components/Toast";
 import { PluginBrandIcon } from "./PluginBrandIcon";
+
+/** Fill gaps when the host is on an older catalog build. */
+function mergeWithLocalCatalog(fromHost: AgentPluginView[]): AgentPluginView[] {
+  const byId = new Map(
+    fromHost
+      .filter((p) => p.kind === "catalog" && p.catalogId)
+      .map((p) => [p.catalogId!, p] as const),
+  );
+  const catalog: AgentPluginView[] = MCP_CATALOG.map((entry) => {
+    const existing = byId.get(entry.id);
+    if (existing) {
+      return {
+        ...existing,
+        name: entry.name,
+        description: entry.description,
+        serverName: entry.serverName,
+        builtin: Boolean(entry.builtin),
+      };
+    }
+    if (!entry.builtin) {
+      return {
+        id: `catalog:${entry.id}`,
+        kind: "catalog" as const,
+        catalogId: entry.id,
+        name: entry.name,
+        description: entry.description,
+        serverName: entry.serverName,
+        enabled: false,
+        configured: entry.secrets.length === 0,
+        builtin: false,
+        secretSpecs: entry.secrets,
+        secretsSet: [],
+        docsUrl: entry.docsUrl,
+        createdAt: null,
+        updatedAt: null,
+      };
+    }
+    return {
+      id: `catalog:${entry.id}`,
+      kind: "catalog" as const,
+      catalogId: entry.id,
+      name: entry.name,
+      description: entry.description,
+      serverName: entry.serverName,
+      enabled: true,
+      configured: true,
+      builtin: true,
+      secretSpecs: [],
+      secretsSet: [],
+      docsUrl: entry.docsUrl,
+      createdAt: null,
+      updatedAt: null,
+    };
+  });
+  const custom = fromHost.filter((p) => p.kind === "custom");
+  return [...catalog, ...custom];
+}
 
 type Sheet =
   | { kind: "install-catalog"; plugin: AgentPluginView }
@@ -36,7 +97,7 @@ export function AgentPluginsPanel({
     let cancelled = false;
     void listAgentPlugins(agentId)
       .then((list) => {
-        if (!cancelled) setPlugins(list);
+        if (!cancelled) setPlugins(mergeWithLocalCatalog(list));
       })
       .catch((err) => {
         if (!cancelled) {
@@ -78,13 +139,12 @@ export function AgentPluginsPanel({
 
   function replacePlugin(next: AgentPluginView) {
     setPlugins((prev) => {
-      if (!prev) return [next];
-      if (next.kind === "catalog" && next.catalogId) {
-        return prev.map((p) =>
-          p.catalogId === next.catalogId ? next : p,
-        );
-      }
-      return prev.map((p) => (p.id === next.id ? next : p));
+      const base = prev ?? [];
+      const patched =
+        next.kind === "catalog" && next.catalogId
+          ? base.map((p) => (p.catalogId === next.catalogId ? next : p))
+          : base.map((p) => (p.id === next.id ? next : p));
+      return mergeWithLocalCatalog(patched);
     });
   }
 
@@ -225,7 +285,10 @@ export function AgentPluginsPanel({
             <h3 className="type-label mb-2 text-[var(--ink-soft)]">Available</h3>
             {catalog.map((plugin) => {
               const live = plugin.enabled && plugin.configured;
-              const builtin = Boolean(plugin.builtin);
+              const builtin = Boolean(
+                plugin.builtin ??
+                  getMcpCatalogEntry(plugin.catalogId ?? "")?.builtin,
+              );
               return (
                 <PluginRow
                   key={plugin.catalogId ?? plugin.id}
@@ -242,11 +305,7 @@ export function AgentPluginsPanel({
                     )
                   }
                   action={
-                    builtin ? (
-                      <span className="type-meta rounded-full bg-[var(--panel-2)] px-2 py-1 text-[var(--ink-soft)]">
-                        {live ? "Included" : "Host key"}
-                      </span>
-                    ) : live ? (
+                    builtin ? null : live ? (
                       <MoreButton
                         label={`Manage ${plugin.name}`}
                         onClick={() =>
@@ -335,7 +394,7 @@ function PluginRow({
   catalogId?: string | null;
   icon?: string;
   accent?: string;
-  action: React.ReactNode;
+  action?: React.ReactNode;
   onClick: () => void;
 }) {
   return (
@@ -361,7 +420,7 @@ function PluginRow({
           </span>
         </span>
       </button>
-      <div className="shrink-0">{action}</div>
+      {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );
 }
@@ -483,42 +542,58 @@ function BuiltinInfoSheet({
 }) {
   const entry = getMcpCatalogEntry(plugin.catalogId ?? "");
   const live = plugin.enabled && plugin.configured;
-  const isPipeline = plugin.catalogId === "substreams";
-  const subtitle = isPipeline
-    ? "Included for every agent — Substreams studio deploy path."
-    : live
-      ? "Included for every agent — powered by The Graph."
-      : "Waiting for host THE_GRAPH_GATEWAY_API_KEY.";
-  const mention = isPipeline ? "@pipeline" : "@search";
-  const help = isPipeline
-    ? "or run /event-pipeline. Author a Substreams listener from natural language, then draft token_flow_alert with the returned pipelineId."
-    : "Operators set one Gateway API key on the host (100k free queries/mo) — users never paste a key here.";
-  const docsLabel = isPipeline
-    ? "Substreams skills docs →"
-    : "The Graph AI docs →";
+  const catalogId = plugin.catalogId;
+  const copy =
+    catalogId === "backtest"
+      ? {
+          subtitle: "Included for every agent — equity curves in chat.",
+          mention: "@backtest",
+          help: "Run a simulated backtest on a strategy idea; results chart in the thread.",
+          docsLabel: null as string | null,
+          mentionSuffix: ". " as const,
+        }
+      : catalogId === "social-search"
+        ? {
+            subtitle:
+              "Included for every agent — free X/Twitter rumor scout.",
+            mention: "@social",
+            help: "Runs search_x (keyless web search scoped to X). Treat hits as unverified until confirmed on-chain.",
+            docsLabel: null as string | null,
+            mentionSuffix: ". " as const,
+          }
+        : {
+            subtitle: live
+              ? "Included for every agent — powered by The Graph."
+              : "Waiting for host THE_GRAPH_GATEWAY_API_KEY.",
+            mention: "@search",
+            help: "Operators set one Gateway API key on the host (100k free queries/mo) — users never paste a key here.",
+            docsLabel: "The Graph AI docs →",
+            mentionSuffix: ". " as const,
+          };
 
   return (
     <SheetFrame
       title={plugin.name}
-      subtitle={subtitle}
+      subtitle={copy.subtitle}
       catalogId={plugin.catalogId}
       onBack={onBack}
     >
       <div className="space-y-4">
         <p className="type-meta text-[var(--ink-soft)]">{plugin.description}</p>
         <p className="type-meta text-[var(--muted)]">
-          Mention <span className="text-[var(--ink)]">{mention}</span> in chat
-          {isPipeline ? " " : ". "}
-          {help}
+          Mention <span className="text-[var(--ink)]">{copy.mention}</span> in
+          chat
+          {copy.mentionSuffix}
+          {copy.help}
         </p>
-        {entry?.docsUrl ? (
+        {entry?.docsUrl && copy.docsLabel ? (
           <a
             href={entry.docsUrl}
             target="_blank"
             rel="noreferrer"
             className="type-meta text-[var(--link)] hover:underline"
           >
-            {docsLabel}
+            {copy.docsLabel}
           </a>
         ) : null}
         <button
