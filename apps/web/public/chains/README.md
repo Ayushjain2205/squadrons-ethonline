@@ -11,5 +11,6 @@ Sourced from CoinGecko asset platforms (`GET /api/v3/asset_platforms`):
 | `unichain.png` | 130 | `unichain` | https://coin-images.coingecko.com/asset_platforms/images/22206/small/unichain.png |
 | `worldchain.png` | 480 | `world-chain` | https://coin-images.coingecko.com/asset_platforms/images/22180/small/Worldcoin-logomark-light.png |
 | `robinhood.png` | 4663 | `robinhood` | https://coin-images.coingecko.com/asset_platforms/images/102132299/small/robinhood.png |
+| `arc.png` | 5042002 | Arc Testnet (Circle) | Vendored brand mark — not on CoinGecko asset platforms yet |
 
 Vendored locally so the desk does not depend on live CDN hotlinking.

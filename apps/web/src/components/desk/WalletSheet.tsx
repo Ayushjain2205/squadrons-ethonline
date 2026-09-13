@@ -121,6 +121,12 @@ function explorerFor(
       url: `https://worldscan.org/address/${address}`,
     };
   }
+  if (chainId === 5042002) {
+    return {
+      label: "ArcScan",
+      url: `https://testnet.arcscan.app/address/${address}`,
+    };
+  }
   // Robinhood — no public explorer wired yet
   return null;
 }

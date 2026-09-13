@@ -38,6 +38,23 @@ const robinhood = defineChain({
   },
 });
 
+/** Arc Testnet — USDC is native gas (18 decimals); ERC-20 USDC interface is 6 decimals. */
+const arcTestnet = defineChain({
+  id: 5042002,
+  name: "Arc Testnet",
+  nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
+  rpcUrls: {
+    default: {
+      http: ["https://rpc.testnet.arc.io"],
+      webSocket: ["wss://rpc.testnet.arc.io"],
+    },
+  },
+  blockExplorers: {
+    default: { name: "ArcScan", url: "https://testnet.arcscan.app" },
+  },
+  testnet: true,
+});
+
 /** @type {Record<number, ChainToolConfig>} */
 export const CHAIN_TOOL_CONFIGS = {
   8453: {
@@ -188,6 +205,28 @@ export const CHAIN_TOOL_CONFIGS = {
       },
     },
   },
+  5042002: {
+    chainId: 5042002,
+    name: "Arc Testnet",
+    shortName: "Arc",
+    viemChain: arcTestnet,
+    rpcEnvKeys: ["ARC_RPC_URL", "SQUADRONS_ARC_RPC_URL"],
+    defaultRpcUrl: "https://rpc.testnet.arc.io",
+    nativeSymbol: "USDC",
+    tokens: {
+      // ERC-20 interface for native USDC (shares balance; use for approvals / Swap Kit).
+      USDC: {
+        address: "0x3600000000000000000000000000000000000000",
+        decimals: 6,
+        symbol: "USDC",
+      },
+      EURC: {
+        address: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a",
+        decimals: 6,
+        symbol: "EURC",
+      },
+    },
+  },
 };
 
 /**
@@ -231,18 +270,40 @@ export function defaultTokenSymbols(config) {
 }
 
 /**
- * Chains where get_dex_quote / 0x AllowanceHolder swaps are enabled.
+ * Chains where get_dex_quote / swap builds are enabled.
  * Keep in sync with packages/shared policy + apps/host swap-build.
  * How to add a chain: see ./README.md
  * Robinhood (4663) omitted until 0x + USDG routing are verified.
+ * Arc (5042002) uses Circle Swap Kit (not 0x).
  */
-export const DEX_QUOTE_CHAIN_IDS = [8453, 1, 42161, 10, 130, 480];
+export const DEX_QUOTE_CHAIN_IDS = [8453, 1, 42161, 10, 130, 480, 5042002];
+
+/** @typedef {"0x" | "circle-swap-kit"} SwapProvider */
+
+/**
+ * @param {number} chainId
+ * @returns {SwapProvider | null}
+ */
+export function swapProviderForChain(chainId) {
+  if (chainId === 5042002) return "circle-swap-kit";
+  if (DEX_QUOTE_CHAIN_IDS.includes(chainId) && chainId !== 5042002) {
+    return "0x";
+  }
+  return null;
+}
 
 /**
  * @param {number} chainId
  */
 export function supportsDexQuote(chainId) {
-  return DEX_QUOTE_CHAIN_IDS.includes(chainId);
+  return swapProviderForChain(chainId) != null;
+}
+
+/**
+ * @param {number} chainId
+ */
+export function usesCircleSwapKit(chainId) {
+  return swapProviderForChain(chainId) === "circle-swap-kit";
 }
 
 /**

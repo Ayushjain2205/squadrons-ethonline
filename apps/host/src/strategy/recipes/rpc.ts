@@ -32,6 +32,10 @@ const RPC_BY_CHAIN: Record<
     envKeys: ["ROBINHOOD_RPC_URL", "SQUADRONS_ROBINHOOD_RPC_URL"],
     defaultUrl: "https://rpc.mainnet.chain.robinhood.com",
   },
+  5042002: {
+    envKeys: ["ARC_RPC_URL", "SQUADRONS_ARC_RPC_URL"],
+    defaultUrl: "https://rpc.testnet.arc.io",
+  },
 };
 
 export function resolveRpcUrl(chainId: number): string {

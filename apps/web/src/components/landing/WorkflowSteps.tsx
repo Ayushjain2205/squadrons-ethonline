@@ -56,8 +56,8 @@ const STEP_CHAINS: StepChain[] = [
     logoUrl: "/chains/robinhood.png",
   },
   {
-    chainId: 9991,
-    name: "Arc",
+    chainId: 5042002,
+    name: "Arc Testnet",
     shortName: "Arc",
     logoUrl: "/chains/arc.png",
   },
@@ -123,7 +123,7 @@ const STEP_1_PRESETS: AgentPreset[] = [
   },
   {
     id: "arc-scout",
-    chainId: 9991,
+    chainId: 5042002,
     avatarId: "02",
     colorId: "blue",
     name: "Arc Liquidity Sentinel",

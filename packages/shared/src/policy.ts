@@ -50,6 +50,13 @@ export const SUPPORTED_CHAINS = [
     shortName: "Robinhood",
     logoUrl: "/chains/robinhood.png",
   },
+  {
+    /** Arc Testnet — Circle L1; mainnet IDs land when published. */
+    chainId: 5042002,
+    name: "Arc Testnet",
+    shortName: "Arc",
+    logoUrl: "/chains/arc.png",
+  },
 ] as const;
 
 export type SupportedChainId = (typeof SUPPORTED_CHAINS)[number]["chainId"];
@@ -77,7 +84,8 @@ export const CHAIN_SCOPED_READ_TOOLS = [
 ] as const;
 
 /**
- * 0x DEX quote tool. Enabled when chainId ∈ DEX_QUOTE_CHAIN_IDS
+ * DEX quote tool (0x or Circle Swap Kit by chain).
+ * Enabled when chainId ∈ DEX_QUOTE_CHAIN_IDS
  * (keep in sync with packages/squadrons-defi/chains.js + host swap-build).
  * How to add a chain: packages/squadrons-defi/README.md
  * Live broadcast uses the same allowlist (executor → supportsDexQuote).
@@ -90,13 +98,22 @@ export const BASE_DEX_QUOTE_TOOLS = DEX_QUOTE_TOOLS;
 export type ChainScopedReadTool = (typeof CHAIN_SCOPED_READ_TOOLS)[number];
 export type DexQuoteTool = (typeof DEX_QUOTE_TOOLS)[number];
 
-/** Keep in sync with packages/squadrons-defi DEX_QUOTE_CHAIN_IDS. */
+/**
+ * Chains with a swap quote provider.
+ * Keep in sync with packages/squadrons-defi DEX_QUOTE_CHAIN_IDS.
+ * Arc (5042002) uses Circle Swap Kit — not 0x.
+ */
 const DEX_QUOTE_CHAIN_IDS: readonly SupportedChainId[] = [
-  8453, 1, 42161, 10, 130, 480,
+  8453, 1, 42161, 10, 130, 480, 5042002,
 ];
 
 export function supportsDexQuote(chainId: number): boolean {
   return DEX_QUOTE_CHAIN_IDS.includes(chainId as SupportedChainId);
+}
+
+/** True when the home chain routes swaps via Circle Swap Kit (Arc). */
+export function usesCircleSwapKit(chainId: number): boolean {
+  return chainId === 5042002;
 }
 
 export function chainScopedReadTools(
