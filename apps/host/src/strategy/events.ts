@@ -7,6 +7,10 @@ import {
   setCopySnapshot,
   setPendingCopySignal,
 } from "./recipes/copy-detect.js";
+import {
+  formatTokenFlowDetail,
+  sampleTokenFlowHead,
+} from "./pipeline-head.js";
 
 const SPOT_IDS: Record<string, string> = {
   ETH: "ethereum",
@@ -20,6 +24,7 @@ const SPOT_IDS: Record<string, string> = {
 /** In-memory last samples for event-edge detection (resets on host restart). */
 const lastPrices = new Map<string, number>();
 const lastPoolReserves = new Map<string, number>();
+const lastTokenFlowHits = new Map<string, boolean>();
 
 export type EventEdgeResult =
   | { kind: "skip"; reason: string }
@@ -161,6 +166,13 @@ export async function evaluateEventEdge(
     strategy.recipeId === "copy_wallet_propose"
   ) {
     return evaluateCopyWalletEdge(strategy, chainId);
+  }
+
+  if (
+    event === "token_flow_hit" ||
+    strategy.recipeId === "token_flow_alert"
+  ) {
+    return evaluateTokenFlowEdge(strategy, chainId);
   }
 
   // Unknown events: treat like interval (always fire when due).
@@ -402,5 +414,47 @@ async function evaluateCopyWalletEdge(
 export function clearEventEdgeState(agentId: string): void {
   lastPrices.delete(agentId);
   lastPoolReserves.delete(agentId);
+  lastTokenFlowHits.delete(agentId);
   clearCopyWalletState(agentId);
+}
+
+async function evaluateTokenFlowEdge(
+  strategy: Strategy,
+  chainId: number,
+): Promise<EventEdgeResult> {
+  const pipelineId =
+    typeof strategy.params.pipelineId === "string"
+      ? strategy.params.pipelineId.trim()
+      : "";
+  if (!pipelineId) {
+    return { kind: "skip", reason: "missing pipelineId" };
+  }
+
+  const minVolumeUsd = Number(strategy.params.minVolumeUsd);
+  const minScore = Number(strategy.params.minScore);
+  const head = sampleTokenFlowHead(pipelineId, chainId);
+  const detail = formatTokenFlowDetail(head);
+  const { score, volumeUsd } = head.leader;
+
+  const above =
+    (Number.isFinite(minScore) && minScore > 0 && score >= minScore) ||
+    (Number.isFinite(minVolumeUsd) &&
+      minVolumeUsd > 0 &&
+      volumeUsd >= minVolumeUsd);
+
+  const key = strategy.agentId;
+  const prev = lastTokenFlowHits.get(key);
+  lastTokenFlowHits.set(key, above);
+
+  if (prev == null) {
+    return {
+      kind: "armed",
+      detail: `${detail} — watching volume/score thresholds`,
+    };
+  }
+
+  if (!prev && above) {
+    return { kind: "fire", detail: `${detail} · hit` };
+  }
+  return { kind: "quiet", detail };
 }

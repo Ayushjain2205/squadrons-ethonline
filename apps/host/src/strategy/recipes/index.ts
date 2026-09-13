@@ -13,6 +13,7 @@ import {
 } from "./price-cross.js";
 import { executeStableDepegAlert } from "./stable-depeg.js";
 import { executeTakeProfitStop } from "./take-profit-stop.js";
+import { executeTokenFlowAlert } from "./token-flow.js";
 import type { RecipeContext } from "./types.js";
 
 export type { RecipeContext } from "./types.js";
@@ -31,6 +32,7 @@ const EXECUTORS: Record<RecipeId, RecipeExecutor> = {
   stable_depeg_alert: executeStableDepegAlert,
   pool_liquidity_shock: executePoolLiquidityShock,
   copy_wallet_propose: executeCopyWalletPropose,
+  token_flow_alert: executeTokenFlowAlert,
 };
 
 export function hasRecipeExecutor(recipeId: RecipeId | null): boolean {

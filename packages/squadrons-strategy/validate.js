@@ -12,6 +12,7 @@ const RECIPE_IDS = [
   "stable_depeg_alert",
   "pool_liquidity_shock",
   "copy_wallet_propose",
+  "token_flow_alert",
 ];
 
 const RECIPE_DEFAULTS = {
@@ -48,6 +49,11 @@ const RECIPE_DEFAULTS = {
     targetAddress: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
     amountUsd: 10,
     minUsd: 100,
+  },
+  token_flow_alert: {
+    pipelineId: "pipe_replace_me",
+    minVolumeUsd: 75000,
+    minScore: 120,
   },
 };
 
@@ -252,6 +258,27 @@ function parseRecipeParams(recipeId, value) {
       return null;
     }
     return { targetAddress, amountUsd, minUsd };
+  }
+
+  if (recipeId === "token_flow_alert") {
+    const pipelineId =
+      typeof raw.pipelineId === "string" && raw.pipelineId.trim()
+        ? raw.pipelineId.trim()
+        : defaults.pipelineId;
+    if (!pipelineId || !/^pipe_[a-zA-Z0-9_-]{6,48}$/.test(pipelineId)) {
+      return null;
+    }
+    const minVolumeUsd = Number(raw.minVolumeUsd ?? defaults.minVolumeUsd);
+    const minScore = Number(raw.minScore ?? defaults.minScore);
+    if (
+      !Number.isFinite(minVolumeUsd) ||
+      minVolumeUsd < 0 ||
+      !Number.isFinite(minScore) ||
+      minScore < 0
+    ) {
+      return null;
+    }
+    return { pipelineId, minVolumeUsd, minScore };
   }
 
   return null;
