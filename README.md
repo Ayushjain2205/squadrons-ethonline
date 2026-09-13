@@ -1,113 +1,96 @@
 # Squadrons
 
-Multi-tenant platform for persistent, named crypto agents.
+**The agent harness for DeFi.**
 
-See [PRD.md](./PRD.md) for product and implementation orientation.
-See [docs/STRATEGY.md](./docs/STRATEGY.md) for chat → Arm → deterministic recipes → self-improvement.
-See [docs/graph_usage.md](./docs/graph_usage.md) for The Graph (Chain Search + Substreams).
-See [docs/arc_usage.md](./docs/arc_usage.md) for Arc / Circle Swap Kit.
+Equip crypto agents with live onchain search, social sentiment, and safety-capped execution loops — a roster of named agents on a desk, not a generic chatbot with tools bolted on.
 
-## Monorepo
+Crypto operators get persistent scouts they can chat with, research with, Arm into strategies, and graduate from Observe → Paper → Live without babysitting every tick.
+
+```
+Choose a chain → create an agent → research → Arm a loop → paper → live (capped)
+```
+
+## Why this exists
+
+Coding harnesses (Cursor, Claude Code, …) are built for repos: web search, docs, linters, terminals, PRs. DeFi needs different primitives.
+
+| Generic harness | Squadrons |
+| --- | --- |
+| Web / SEO search | **Onchain search** — subgraphs, pools, TVL (`@search`) |
+| Docs / StackOverflow | **X & CT pulse** — ticker mindshare, whale chatter (`@pulse`) |
+| Linter / typecheck | **DEX radar & sim** — quotes, impact, backtests (`@backtest`) |
+| Bash sandbox | **Armed loops** — deterministic host recipes, not LLM-every-tick (`@arm`) |
+| Code review | **Safety ladder** — Observe → Paper → Live with fail-closed spend caps |
+
+One shared Privy embedded wallet per user. Agents never hold keys. Spend is per-agent and capped (default auto-trade ceiling: $10).
+
+## How it works
+
+1. **Choose chain, create agent** — Base, Ethereum, Arbitrum, Optimism, Unichain, World Chain, Robinhood, Arc Testnet. Name, avatar, mandate.
+2. **Research** — skills (`/market-analyser`, `/wallet-pulse`, …), tools (`@search`, `@pulse`, `@backtest`, quotes, balances), and MCP plugins (The Graph, Uniswap, DefiLlama, …).
+3. **Simulate, then graduate** — chat drafts a strategy → **Arm** starts a host loop → **Paper** quotes/fills with no broadcast → **Live** settles under gas / slippage / spend caps (0x on ETH L2s; Circle Swap Kit on Arc).
+4. **Self-improve** — optional cadence: execute → analyze edge → propose param patches for desk approval.
+
+## What you get
+
+- **My Agents desk** — Grok-shaped three-column roster / chat / context
+- Continuous per-agent memory and an activity trail (chat tools vs strategy ticks)
+- Curated **templates** + deterministic **recipes** (see [docs/STRATEGY.md](./docs/STRATEGY.md))
+- Funding via Privy **Add funds**; Live broadcast via Privy session signer + Wallet API
+- Builtins for Chain Search, Event Pipeline (Substreams), Social Search, Backtest — host-provisioned, no paste-your-own-key UX for the core loop
+
+## Repo
 
 | Package | Role |
 | --- | --- |
-| `apps/web` | Next.js — My Agents UI |
-| `apps/host` | Node 22 supervisor — agents, dsh, policy, Privy, SSE |
-| `packages/shared` | Shared types, policy defaults, avatar IDs |
+| `apps/web` | Next.js desk + landing |
+| `apps/host` | Node 22 supervisor — agents, dsh, policy, Privy, SSE, strategy runtime |
+| `packages/shared` | Types, policy, templates, recipes, plugin catalog |
+| `packages/squadrons-*` | Cordis plugins (defi, strategy, social, intel, chain-search, substreams, …) |
 
-## Prerequisites
+## Docs
 
-- Node.js 22+
-- [pnpm](https://pnpm.io) 9+
+| Guide | What it covers |
+| --- | --- |
+| [Strategy](./docs/STRATEGY.md) | Chat → Arm → recipes → self-improvement |
+| [Privy usage](./docs/privy_usage.md) | Auth, embedded wallet, Add funds, Live broadcast |
+| [Arc usage](./docs/arc_usage.md) | USDC-native Arc, Circle Swap Kit, USDC↔EURC |
+| [The Graph usage](./docs/graph_usage.md) | Chain Search (Subgraph MCP) + Event Pipeline (Substreams) |
+| [PRD](./PRD.md) · [Product](./PRODUCT.md) | Spec and positioning |
 
-## Setup
+## Quick start
+
+**Prereqs:** Node 22+, pnpm 9+
 
 ```bash
 pnpm install
-```
-
-Copy env examples when present:
-
-```bash
 cp apps/host/.env.example apps/host/.env
 cp apps/web/.env.example apps/web/.env.local
 ```
 
-`@squadrons/shared` is consumed from TypeScript source (Next transpiles it; host runs via `tsx`). No separate shared build step for local `pnpm dev`.
+Fill at least:
 
-## Develop
-
-```bash
-# both apps
-pnpm dev
-
-# individually
-pnpm dev:web
-pnpm dev:host
-```
-
-- Web: http://localhost:3000
-- Host: http://localhost:8787
-
-### dsh profile (OpenRouter + Cordis plugins)
-
-Host uses workspace-local `apps/host/data/dsh-home` (not `~/.dsh`). Cordis plugins live in `packages/squadrons-{defi,strategy,social}` and must list `@deepseek-ai/dsh-tools` as a **dependency** so Node can resolve imports when the profile `link:`s them.
+- Web: `NEXT_PUBLIC_PRIVY_APP_ID`, `NEXT_PUBLIC_PRIVY_SIGNER_ID`
+- Host: `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `OPENROUTER_API_KEY`
+- Optional for Live: `PRIVY_AUTHORIZATION_PRIVATE_KEY`, `SQUADRONS_EXECUTION_MODE=live`
+- Optional for Chain Search: `THE_GRAPH_GATEWAY_API_KEY`
 
 ```bash
-pnpm dsh:check    # fail closed if plugins/peers/DSH_HOME look broken
-pnpm dsh:repair   # rewrite local sdk profile + OpenRouter patch
-pnpm --filter @squadrons/host dsh:link   # ensure plugins are bundled
+pnpm dsh:repair          # local sdk profile + OpenRouter patch
+pnpm --filter @squadrons/host dsh:link
+pnpm dev                 # web :3000 · host :8787
 ```
 
-Host runs `dsh:check` on startup and refuses to listen if the tree is broken (override with `SQUADRONS_DSH_SKIP_PREFLIGHT=1`). `/health` includes a `dsh` block. Scripts live under `apps/host/scripts/dsh/`.
+Open http://localhost:3000 → log in → create an agent.
 
-### Chain Search (The Graph)
+Host refuses to listen if the dsh plugin tree looks broken (`pnpm dsh:check`; override with `SQUADRONS_DSH_SKIP_PREFLIGHT=1`). `@squadrons/shared` is consumed from TypeScript source — no separate shared build for local `pnpm dev`.
 
-Onchain search is **included for every agent** when the host has a Gateway API key — users do not paste keys in Plugins.
-
-1. Create a free key in [Subgraph Studio](https://thegraph.com/studio/) (API Keys; **100k queries/month** free — set a spending limit).
-2. Set `THE_GRAPH_GATEWAY_API_KEY=` in `apps/host/.env` and restart the host.
-3. In chat: `@search Uniswap V3 pools on Ethereum` (or `@graph …`). The agent queries Subgraph MCP live, then shows a **Chain Search** results card.
-
-All tenants share that one quota — fine for demos; add rate limits or BYO keys later for production.
-
-## Step 1 — dsh smoke
-
-Requires a working `sdk` profile (`dsh --profile sdk --help`).
+### Smoke
 
 ```bash
 pnpm --filter @squadrons/host dsh:smoke
-# or: curl -X POST http://localhost:8787/v1/dsh/smoke -H 'content-type: application/json' -d '{"prompt":"say hi"}'
 ```
 
-## Auth (Privy)
+### Auth note
 
-1. Create a Privy app and enable embedded wallets (create on login).
-2. Set `NEXT_PUBLIC_PRIVY_APP_ID` in `apps/web/.env.local`.
-3. Set `PRIVY_APP_ID` and `PRIVY_APP_SECRET` in `apps/host/.env`.
-
-The desk requires login. Host APIs expect `Authorization: Bearer <Privy access token>` (SSE uses `?access_token=`). Agents are scoped by Privy user id (DID). Older `local-dev` rows are not migrated — wipe/recreate agents after switching to real auth.
-
-`GET /v1/me` returns `{ userId, walletAddress }` for the shared embedded wallet. The host injects that address as `SQUADRONS_USER_WALLET` into dsh turns so `get_wallet_balances` defaults to it. Optional `SQUADRONS_DEMO_WALLET` is only a fallback when no user wallet is set.
-
-## Step 2 — agents + workspaces
-
-Use a Privy access token from a logged-in session (browser Network tab, or Privy SDK `getAccessToken()`):
-
-```bash
-curl -s -X POST http://localhost:8787/v1/agents \
-  -H 'content-type: application/json' \
-  -H "authorization: Bearer $PRIVY_ACCESS_TOKEN" \
-  -d '{"name":"Base Scout","avatarId":"01","description":"Scouts LP opportunities on Base"}'
-```
-
-## Step 3 — My Agents UI
-
-With host running on `:8787`:
-
-```bash
-pnpm dev:web
-# open http://localhost:3000 — log in, then list / create agents
-```
-
-New agents start idle with a short greeting. The host keeps a long-lived dsh harness + session per agent in-process (new session after host restart or home-chain change). Context pressure uses dsh’s built-in `@deepseek-ai/dsh-compaction-basic` from the `sdk` profile (`dsh-base`) — no custom summarizer. Mid-turn tool activity streams over SSE (`GET /v1/agents/:id/events`) and is persisted in SQLite (`GET /v1/agents/:id/activity`). Observe-mode dsh patch disables shell/fs/subagents; keeps web/todo/goal/skill plus **`get_wallet_balances`** / **`get_spot_prices`** / **`get_dex_quote`** (ETH L2s via 0x; Arc Testnet via Circle Swap Kit — `packages/squadrons-defi`; [add a chain](packages/squadrons-defi/README.md)), **`search_x`** (`packages/squadrons-social`), and market intel **`get_trending_pools`** / **`get_token_pools`** / **`get_recent_trades`** / **`get_stablecoin_market`** / **`get_dex_volumes`** (`packages/squadrons-intel` — GeckoTerminal + DefiLlama, free). Generic `web_search` still needs `DEEPSEEK_API_KEY` (disabled in observe). Live broadcast remains Base-gated.
+Desk login is Privy (email or wallet; embedded wallet on login). Host APIs take `Authorization: Bearer <access token>` (SSE: `?access_token=`). Agents are scoped by Privy user id. Details: [docs/privy_usage.md](./docs/privy_usage.md).
