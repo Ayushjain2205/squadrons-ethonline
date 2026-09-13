@@ -43,7 +43,7 @@ export type McpCatalogEntry = {
   docsUrl?: string;
   /**
    * Platform-included capability (host-provisioned). No per-user install/key.
-   * Desk shows as Included; host injects tools when configured.
+   * Always on for every agent; host injects tools when configured.
    */
   builtin?: boolean;
 };
@@ -70,33 +70,33 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     docsUrl: "https://thegraph.com/docs/en/ai-overview/",
   },
   {
-    id: "substreams",
-    name: "Event Pipeline",
+    id: "social-search",
+    name: "Social Search",
     description:
-      "Author and deploy Substreams pipelines for onchain strategy listeners",
-    icon: "pipeline",
-    accent: "#5dcea0",
-    serverName: "pipeline",
+      "Scout public X/Twitter chatter via free keyless search (rumor, not API)",
+    icon: "social",
+    accent: "#1D9BF0",
+    // @social mention token; live tool is search_x from squadrons-social.
+    serverName: "social",
     transport: "stdio",
-    command: "squadrons-substreams",
+    command: "squadrons-social",
     args: [],
     secrets: [],
     builtin: true,
-    docsUrl: "https://thegraph.com/docs/en/substreams/tooling/skills/",
   },
   {
     id: "backtest",
     name: "Backtest",
     description: "Simulated equity curves for strategy ideas (chart in chat)",
     icon: "backtest",
-    accent: "#5dcea0",
+    accent: "#3B9BFF",
     serverName: "backtest",
-    // Desk still treats this as a catalog plugin; host loads it as Cordis tools
-    // (not remote MCP) when enabled — see mcp-patch.ts.
+    // Host-bundled Cordis tools (not remote MCP) — always on; see mcp-patch.ts.
     transport: "stdio",
     command: "squadrons-backtest",
     args: [],
     secrets: [],
+    builtin: true,
   },
   {
     id: "dune",
