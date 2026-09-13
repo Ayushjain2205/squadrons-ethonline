@@ -1,5 +1,9 @@
-import { DEFAULT_POLICY } from "@squadrons/shared";
+import { DEFAULT_POLICY, usesCircleSwapKit } from "@squadrons/shared";
 import { resolveKnownToken } from "./recipes/tokens.js";
+import {
+  buildCircleSwapFromPlan,
+  isCircleSwapConfigured,
+} from "./circle-swap.js";
 
 /** 0x native ETH sentinel (not WETH). */
 export const ZEROEX_NATIVE_TOKEN =
@@ -8,14 +12,21 @@ export const ZEROEX_NATIVE_TOKEN =
 /** Chains where 0x AllowanceHolder quotes / swap builds are enabled.
  * Keep in sync with packages/squadrons-defi/chains.js + shared policy.
  * How to add a chain: packages/squadrons-defi/README.md
+ * Arc (5042002) is Circle Swap Kit — see DEX_QUOTE_CHAIN_IDS + usesCircleSwapKit.
  */
-export const DEX_QUOTE_CHAIN_IDS = [
+export const ZEROEX_QUOTE_CHAIN_IDS = [
   DEFAULT_POLICY.defaultChainId,
   1,
   42161,
   10,
   130,
   480,
+] as const;
+
+/** All swap-enabled home chains (0x + Circle). */
+export const DEX_QUOTE_CHAIN_IDS = [
+  ...ZEROEX_QUOTE_CHAIN_IDS,
+  5042002,
 ] as const;
 
 export function supportsDexQuote(chainId: number): boolean {
@@ -40,7 +51,7 @@ export type BuiltSwapTx = {
 };
 
 export type BuiltSwap = {
-  provider: "0x";
+  provider: "0x" | "circle-swap-kit";
   chainId: number;
   sellToken: string;
   buyToken: string;
@@ -98,23 +109,29 @@ function resolveQuoteStable(
 }
 
 /**
- * Map a capped USD trade plan to a 0x AllowanceHolder quote.
+ * Map a capped USD trade plan to a swap quote (0x or Circle Swap Kit).
  * buy  → sell stable for asset (exact-in stable)
- * sell → sell asset for stable (exact-out stable)
- * Enabled on {@link DEX_QUOTE_CHAIN_IDS} (ETH L2s with USDC + 0x). Live broadcast uses the same allowlist.
+ * sell → sell asset for stable (exact-out stable on 0x; exact-in FX on Circle)
  */
 export async function buildSwapFromPlan(
   plan: TradePlan,
 ): Promise<BuildSwapResult> {
+  if (usesCircleSwapKit(plan.chainId)) {
+    if (!isCircleSwapConfigured()) {
+      return { ok: false, reason: "Circle Swap Kit is unavailable" };
+    }
+    return buildCircleSwapFromPlan(plan);
+  }
+
   const apiKey = getZeroExApiKey();
   if (!apiKey) {
     return { ok: false, reason: "ZEROEX_API_KEY is not set" };
   }
 
-  if (!supportsDexQuote(plan.chainId)) {
+  if (!(ZEROEX_QUOTE_CHAIN_IDS as readonly number[]).includes(plan.chainId)) {
     return {
       ok: false,
-      reason: `Swap builder does not support chain ${plan.chainId} (enabled: Base, Ethereum)`,
+      reason: `Swap builder does not support chain ${plan.chainId} (enabled: Base, Ethereum, Arc via Circle)`,
     };
   }
 
@@ -259,4 +276,10 @@ export async function buildSwapFromPlan(
 
 export function isZeroExConfigured(): boolean {
   return Boolean(getZeroExApiKey());
+}
+
+/** True when the plan's chain has a configured swap provider. */
+export function isSwapProviderConfigured(chainId: number): boolean {
+  if (usesCircleSwapKit(chainId)) return isCircleSwapConfigured();
+  return isZeroExConfigured();
 }

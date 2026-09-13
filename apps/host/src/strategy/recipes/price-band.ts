@@ -8,6 +8,7 @@ const SPOT_IDS: Record<string, string> = {
   BTC: "bitcoin",
   SOL: "solana",
   USDC: "usd-coin",
+  EURC: "euro-coin",
 };
 
 export async function executePriceBandAlert(

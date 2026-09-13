@@ -12,6 +12,7 @@ import {
   resolveAgentChainConfig,
   resolveRpcUrl,
   supportsDexQuote,
+  usesCircleSwapKit,
 } from "./chains.js";
 import {
   DEFAULT_SLIPPAGE_BPS,
@@ -20,6 +21,11 @@ import {
   isZeroExConfigured,
   quotableAssetSymbols,
 } from "./zeroex-quote.js";
+import {
+  circleQuotableAssetSymbols,
+  fetchCircleDexQuote,
+  isCircleSwapConfigured,
+} from "./circle-quote.js";
 
 /** Cordis plugin id / package export name. */
 export const name = "squadrons-defi";
@@ -31,6 +37,7 @@ const SPOT_IDS = {
   WETH: "weth",
   USDC: "usd-coin",
   USDG: "usd-coin", // peg reference until a dedicated feed exists
+  EURC: "euro-coin",
 };
 
 function resolveAddress(explicit) {
@@ -186,6 +193,14 @@ export function apply(ctx) {
             continue;
           }
 
+          // Arc: native USDC and ERC-20 USDC share one balance — skip ERC-20 duplicate.
+          if (
+            home.nativeSymbol === "USDC" &&
+            String(token.symbol).toUpperCase() === "USDC"
+          ) {
+            continue;
+          }
+
           let decimals = token.decimals;
           let symbol = token.symbol;
           if (decimals == null) {
@@ -320,13 +335,22 @@ export function apply(ctx) {
   );
 
   if (supportsDexQuote(home.chainId)) {
-    const assets = quotableAssetSymbols(home.chainId).join(", ");
+    const circle = usesCircleSwapKit(home.chainId);
+    const assets = (
+      circle
+        ? circleQuotableAssetSymbols(home.chainId)
+        : quotableAssetSymbols(home.chainId)
+    ).join(", ");
     const stableSym =
       home.tokens.USDC?.symbol || home.tokens.USDG?.symbol || "USDC";
+    const providerLabel = circle ? "Circle Swap Kit" : "0x";
+    const providerHint = circle
+      ? "Requires Circle Swap Kit (optional CIRCLE_API_KEY) and a taker wallet. Arc routes USDC↔EURC — not 0x."
+      : "Requires ZEROEX_API_KEY and a taker wallet.";
     ctx.tools.register(
       defineTool({
         name: "get_dex_quote",
-        description: `Read-only: indicative 0x DEX quote on ${home.shortName} for ${stableSym}↔${assets} (same route language as desk trades). buy = spend ${stableSym} for the asset; sell = sell asset for ${stableSym} (USD notional). Caps: max $${MAX_TRADE_USD}, default slippage ${DEFAULT_SLIPPAGE_BPS} bps. Does NOT execute. Requires ZEROEX_API_KEY and a taker wallet.`,
+        description: `Read-only: indicative ${providerLabel} quote on ${home.shortName} for ${stableSym}↔${assets} (same route language as desk trades). buy = spend ${stableSym} for the asset; sell = sell asset for ${stableSym} (USD notional). Caps: max $${MAX_TRADE_USD}, default slippage ${DEFAULT_SLIPPAGE_BPS} bps. Does NOT execute. ${providerHint}`,
         parameters: {
           side: {
             type: "string",
@@ -365,7 +389,11 @@ export function apply(ctx) {
         timeoutMs: 25_000,
         isConcurrencySafe: () => true,
         async execute(args, exec) {
-          if (!isZeroExConfigured()) {
+          if (circle) {
+            if (!isCircleSwapConfigured()) {
+              throw new Error("Circle Swap Kit is unavailable on this host.");
+            }
+          } else if (!isZeroExConfigured()) {
             throw new Error(
               "ZEROEX_API_KEY is not set. Add it to apps/host/.env to enable get_dex_quote.",
             );
@@ -382,23 +410,23 @@ export function apply(ctx) {
           }
           const amountUsd = Number(args.amountUsd);
           const address = resolveAddress(args.address);
-          return fetchDexQuote(
-            {
-              chainId: home.chainId,
-              walletAddress: address,
-              side,
-              symbol,
-              amountUsd,
-              ...(args.slippageBps !== undefined && args.slippageBps !== null
-                ? { slippageBps: Number(args.slippageBps) }
-                : {}),
-            },
-            exec.signal,
-          );
+          const plan = {
+            chainId: home.chainId,
+            walletAddress: address,
+            side,
+            symbol,
+            amountUsd,
+            ...(args.slippageBps !== undefined && args.slippageBps !== null
+              ? { slippageBps: Number(args.slippageBps) }
+              : {}),
+          };
+          return circle
+            ? fetchCircleDexQuote(plan, exec.signal)
+            : fetchDexQuote(plan, exec.signal);
         },
         presentCall: (args) => ({
           card: "generic",
-          title: `Get DEX quote (${home.shortName} / 0x)`,
+          title: `Get DEX quote (${home.shortName} / ${providerLabel})`,
           kind: "other",
           rawInput: args,
         }),

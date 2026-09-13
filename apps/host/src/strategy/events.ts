@@ -14,6 +14,7 @@ const SPOT_IDS: Record<string, string> = {
   BTC: "bitcoin",
   SOL: "solana",
   USDC: "usd-coin",
+  EURC: "euro-coin",
 };
 
 /** In-memory last samples for event-edge detection (resets on host restart). */

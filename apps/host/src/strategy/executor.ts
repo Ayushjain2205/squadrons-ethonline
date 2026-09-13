@@ -14,12 +14,16 @@ import {
 } from "./broadcast.js";
 import {
   buildSwapFromPlan,
-  isZeroExConfigured,
+  isSwapProviderConfigured,
   supportsDexQuote,
   type BuiltSwap,
   type BuiltSwapTx,
   type TradePlan,
 } from "./swap-build.js";
+import {
+  executeCircleSwap,
+  usesCircleSwapKit,
+} from "./circle-swap.js";
 import { isTenderlyConfigured, simulateSwapTx } from "./tenderly.js";
 import { waitForTxReceipt } from "./tx-wait.js";
 
@@ -182,10 +186,13 @@ export async function executeGatedTrade(input: {
       input.agent.runMode === "live" && getExecutionMode() !== "live"
         ? " · host ceiling is paper-only"
         : "";
-    if (!isZeroExConfigured()) {
+    if (!isSwapProviderConfigured(plan.chainId)) {
+      const need = usesCircleSwapKit(plan.chainId)
+        ? "Circle Swap Kit"
+        : "ZEROEX_API_KEY";
       return {
         status: "dry_run",
-        detail: `Paper: would ${summary} (no broadcast; set ZEROEX_API_KEY to quote)${paperNote}`,
+        detail: `Paper: would ${summary} (no broadcast; configure ${need} to quote)${paperNote}`,
         plan,
       };
     }
@@ -197,12 +204,16 @@ export async function executeGatedTrade(input: {
         plan,
       };
     }
+    const provider =
+      quoted.swap.provider === "circle-swap-kit" ? "Circle Swap Kit" : "0x";
     const approveNote = quoted.swap.needsAllowance
       ? " · would ask chat to approve ERC-20 spend first"
-      : "";
+      : quoted.swap.provider === "circle-swap-kit"
+        ? " · Circle Kit handles approve on live"
+        : "";
     return {
       status: "dry_run",
-      detail: `Paper fill: quoted ${summary} via 0x (no broadcast)${approveNote}${paperNote}`,
+      detail: `Paper fill: quoted ${summary} via ${provider} (no broadcast)${approveNote}${paperNote}`,
       plan,
       swap: quoted.swap,
     };
@@ -211,7 +222,7 @@ export async function executeGatedTrade(input: {
   if (!supportsDexQuote(plan.chainId)) {
     return {
       status: "failed",
-      reason: `Live execution needs 0x on this home chain (unsupported: ${chainLabel(plan.chainId)} / ${plan.chainId})`,
+      reason: `Live execution needs a swap provider on this home chain (unsupported: ${chainLabel(plan.chainId)} / ${plan.chainId})`,
       detail: `Live blocked: ${summary}`,
       plan,
     };
@@ -244,6 +255,27 @@ export async function executeGatedTrade(input: {
         "PRIVY_AUTHORIZATION_PRIVATE_KEY is not set — required for live broadcast",
       detail: `Live blocked at broadcast: ${summary}`,
       plan,
+    };
+  }
+
+  // Arc / Circle Swap Kit — kit.swap handles approve + broadcast via Privy.
+  if (usesCircleSwapKit(plan.chainId)) {
+    const executed = await executeCircleSwap({ plan, walletId });
+    if (!executed.ok) {
+      return {
+        status: "failed",
+        reason: executed.reason,
+        detail: `Live blocked at Circle Swap Kit: ${summary}`,
+        plan,
+        ...(executed.swap ? { swap: executed.swap } : {}),
+      };
+    }
+    return {
+      status: "submitted",
+      detail: `Live: ${summary} · ${executed.detail}`,
+      plan,
+      swap: executed.swap,
+      txHash: executed.txHash,
     };
   }
 

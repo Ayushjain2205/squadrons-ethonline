@@ -8,6 +8,7 @@
     "index.js",
     "chains.js",
     "zeroex-quote.js",
+    "circle-quote.js",
     "cordis.patch.yml",
     "README.md"
   ],
@@ -17,6 +18,8 @@
     }
   },
   "dependencies": {
+    "@circle-fin/adapter-viem-v2": "^1.17.1",
+    "@circle-fin/swap-kit": "^1.6.1",
     "@deepseek-ai/cordis": "^4.0.2",
     "@deepseek-ai/dsh-tools": "0.1.2-rc.1",
     "viem": "^2.37.6"
